@@ -1,0 +1,86 @@
+# ---------------------------------------------------------------
+# Proyecto de Ensamblador (GNU as / ld / gcc) — x86-64 Linux
+# Se versiona el código fuente (.s, .S, .asm, .inc) y la documentación.
+# Todo lo que se pueda regenerar con `as` / `ld` / `gcc` se ignora.
+# ---------------------------------------------------------------
+
+# --- Objetos y binarios intermedios ---
+*.o
+*.obj
+*.ko
+*.elf
+*.exe
+*.out
+a.out
+*.bin
+*.hex
+*.img
+# listados generados con as -al
+*.lst
+# mapas de enlazado (ld -Map)
+*.map
+# dependencias generadas por gcc -MMD
+*.d
+
+# --- Bibliotecas ---
+*.a
+*.lib
+*.so
+*.so.*
+*.dylib
+*.dll
+
+# --- Preprocesado / temporales del toolchain ---
+*.i
+*.ii
+*.su
+*.gcno
+*.gcda
+*.gcov
+
+# --- Ejecutables enlazados (no llevan extensión) ---
+# Regla: ignora los binarios de las prácticas pero conserva sus fuentes.
+/practica*
+!/practica*.s
+!/practica*.S
+!/practica*.asm
+!/practica*.md
+!/practica*/
+
+# Si agregas un ejecutable con otro nombre, añádelo aquí, por ejemplo:
+# /hola
+# /ejercicio1
+
+# --- Depuración ---
+core
+core.*
+vgcore.*
+*.core
+*.stackdump
+.gdb_history
+.gdbinit.local
+perf.data
+perf.data.old
+
+# --- Obsidian (se conserva la configuración, no el estado local) ---
+.obsidian/workspace.json
+.obsidian/workspace-mobile.json
+.obsidian/cache
+.trash/
+
+# --- Editores ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+\#*\#
+.\#*
+*.bak
+*.orig
+*.rej
+
+# --- Sistema operativo ---
+.DS_Store
+Thumbs.db
+.directory
