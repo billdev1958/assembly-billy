@@ -18,6 +18,7 @@ le = . - msg_error
 	.section .bss
 	.lcomm buffer, 64
 	.lcomm cadena, 16
+	.lcomm secuencia, 32
 
 	.section .text
 	.globl _start
@@ -84,6 +85,74 @@ _scanFin:
 	subq	$'0', %rax
 	ret
 
+# inicio asc
+_writeSecuencia:
+	movq	%rdi, %rdx
+	subq	$secuencia, %rdx
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$secuencia, %rsi
+	syscall
+	ret
+
+_imprimeAscendente:
+	movq	$secuencia, %rdi
+	movq	$1, %r13
+
+_cicloAsc:
+	movq	%r13, %rax
+	addq	$'0', %rax
+	movb	%al, (%rdi)
+	incq	%rdi
+
+	cmpq	%r12, %r13
+	je	_finAsc
+
+	movb	$',', (%rdi)
+	incq	%rdi
+	movb	$' ', (%rdi)
+	incq	%rdi
+	incq	%r13
+	jmp	_cicloAsc
+
+_finAsc:
+	movb	$'
+', (%rdi)
+	incq	%rdi
+	call	_writeSecuencia
+	ret
+
+# fin asc
+
+#inicio desc
+
+_imprimeDescendente:
+	movq	$secuencia, %rdi
+	movq	%r12, %r13
+
+_cicloDesc:
+	movq	%r13, %rax
+	addq	$'0', %rax
+	movb	%al, (%rdi)
+	incq	%rdi
+
+	cmpq	$1, %r13
+	je	_finDesc
+
+	movb	$',', (%rdi)
+	incq	%rdi
+	movb	$' ', (%rdi)
+	incq	%rdi
+	decq	%r13
+	jmp	_cicloDesc
+
+_finDesc:
+	movb	$'
+', (%rdi)
+	incq	%rdi
+	call	_writeSecuencia
+	ret
+#fin desc
 
 _dibujarTriangulo:
 	movq	$1, %r13
@@ -132,6 +201,8 @@ _start:
 	movq	%rax, %r12
 
 	call	_writeMsgRes
+	call	_imprimeAscendente
+	call	_imprimeDescendente
 	call	_dibujarTriangulo
 	call	_exit
 
