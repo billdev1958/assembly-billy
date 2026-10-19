@@ -3,8 +3,8 @@ prompt:
 	.ascii "Programa para dibujar un triangulo con asteriscos\n"
 lp = . - prompt
 
-msg_a: 
-	.ascii "Ingresa Altura (1 - 9): "
+msg_a:
+	.ascii "Ingresa Altura (1-9): "
 la = . - msg_a
 
 msg_res:
@@ -12,7 +12,7 @@ msg_res:
 lr = . - msg_res
 
 msg_error:
-        .ascii "Ingresa un numero valido (1-9)\n"
+	.ascii "Ingresa un numero valido (1-9)\n"
 le = . - msg_error
 
 	.section .bss
@@ -21,7 +21,7 @@ le = . - msg_error
 	.lcomm secuencia, 32
 
 	.section .text
-	.globl _start
+	.globl	_start
 
 .equ WRITE,1
 .equ STDOUT,1
@@ -58,17 +58,17 @@ _scanDigit:
 	movq	$buffer, %rsi
 	movq	$1, %rdx
 	syscall
-	
+
 	cmpq	$1, %rax
 	jne	_writeError
 
 	movzbq	buffer(%rip), %r15
-	
-        cmpb    $'1', %r15b
-        jb      _writeError
 
-        cmpb    $'9', %r15b
-        ja      _writeError
+	cmpb	$'1', %r15b
+	jb	_writeError
+
+	cmpb	$'9', %r15b
+	ja	_writeError
 
 _limpiaLinea:
 	movq	$INPUT, %rax
@@ -78,6 +78,9 @@ _limpiaLinea:
 	syscall
 
 	cmpq	$1, %rax
+	jne	_scanFin
+
+	cmpb	$'\n', buffer(%rip)
 	jne	_limpiaLinea
 
 _scanFin:
@@ -151,6 +154,7 @@ _finDesc:
 	incq	%rdi
 	call	_writeSecuencia
 	ret
+
 _dibujaTriangulo:
 	movq	$1, %r13
 
@@ -163,11 +167,11 @@ _cicloColumnas:
 	incq	%rdi
 	loop	_cicloColumnas
 
-	movq	$'\n', (%rdi)
+	movb	$'\n', (%rdi)
 
 	movq	%r13, %rdx
 	incq	%rdx
-	movq	$WRITE,	%rax
+	movq	$WRITE, %rax
 	movq	$STDOUT, %rdi
 	movq	$cadena, %rsi
 	syscall
@@ -192,7 +196,7 @@ _exit:
 
 _start:
 	call	_writePrompt
-	
+
 	call	_writeMsgA
 	call	_scanDigit
 	movq	%rax, %r12
