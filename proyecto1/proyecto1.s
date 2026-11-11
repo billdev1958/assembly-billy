@@ -74,6 +74,90 @@ salto:
 	.ascii "\n"
 lsal = . - salto
 
+# ============================================================
+# SEGUNDA PARTE: validacion sintactica
+# Mensajes y tabla de instrucciones admitidas
+# ============================================================
+
+msg_validacion:
+	.ascii "Validacion:\n"
+lval = . - msg_validacion
+
+msg_valida:
+	.ascii "Instruccion valida\n"
+lvda = . - msg_valida
+
+msg_opcode:
+	.ascii "Codigo de operacion: "
+lopc = . - msg_opcode
+
+msg_no_reconocida:
+	.ascii "ERROR: instruccion no reconocida.\n"
+lnre = . - msg_no_reconocida
+
+msg_sin_operando:
+	.ascii "ERROR: falta el operando.\n"
+lsop = . - msg_sin_operando
+
+msg_sin_segundo:
+	.ascii "ERROR: falta el segundo operando.\n"
+lsse = . - msg_sin_segundo
+
+msg_sobra_operando:
+	.ascii "ERROR: la instruccion solo lleva un operando.\n"
+lsob = . - msg_sobra_operando
+
+msg_registro_invalido:
+	.ascii "ERROR: registro no valido para esta instruccion.\n"
+lrin = . - msg_registro_invalido
+
+msg_inmediato_invalido:
+	.ascii "ERROR: valor inmediato no valido.\n"
+liin = . - msg_inmediato_invalido
+
+# Cada entrada: mnemonico (8), registro (4), tipo (1), codigo de operacion (1)
+# tipo 0 = un operando, tipo 1 = registro e inmediato
+tabla:
+	.ascii "MOV\0\0\0\0\0"
+	.ascii "AL\0\0"
+	.byte 1, 0xB0
+
+	.ascii "MOV\0\0\0\0\0"
+	.ascii "BL\0\0"
+	.byte 1, 0xB3
+
+	.ascii "INC\0\0\0\0\0"
+	.ascii "AX\0\0"
+	.byte 0, 0x40
+
+	.ascii "INC\0\0\0\0\0"
+	.ascii "BX\0\0"
+	.byte 0, 0x43
+
+	.ascii "DEC\0\0\0\0\0"
+	.ascii "AX\0\0"
+	.byte 0, 0x48
+
+	.ascii "DEC\0\0\0\0\0"
+	.ascii "BX\0\0"
+	.byte 0, 0x4B
+
+	.ascii "PUSH\0\0\0\0"
+	.ascii "AX\0\0"
+	.byte 0, 0x50
+
+	.ascii "PUSH\0\0\0\0"
+	.ascii "BX\0\0"
+	.byte 0, 0x53
+
+	.ascii "POP\0\0\0\0\0"
+	.ascii "AX\0\0"
+	.byte 0, 0x58
+
+	.ascii "POP\0\0\0\0\0"
+	.ascii "BX\0\0"
+	.byte 0, 0x5B
+
 	.section .bss
 	.lcomm buffer, 64
 	.lcomm caracter, 1
@@ -81,6 +165,9 @@ lsal = . - salto
 	.lcomm operando1, 16
 	.lcomm operando2, 16
 	.lcomm hayComa, 1
+
+# ===== SEGUNDA PARTE: variables =====
+	.lcomm cadena, 4
 
 	.section .text
 	.globl	_start
@@ -96,6 +183,17 @@ lsal = . - salto
 .equ ERROR_OPERANDO,2
 .equ ERROR_COMA,3
 .equ ERROR_SOBRANTE,4
+
+# ===== SEGUNDA PARTE: constantes =====
+.equ TAM_REGISTRO,4
+.equ TAM_ENTRADA,14
+.equ TOTAL_ENTRADAS,10
+.equ ENT_REGISTRO,8
+.equ ENT_TIPO,12
+.equ ENT_OPCODE,13
+.equ BASE,10
+.equ BASE_HEX,16
+.equ MAX_INMEDIATO,255
 
 _writePrompt:
 	movq	$WRITE, %rax
@@ -525,6 +623,329 @@ _imprimeOperando2:
 _imprimeAnalisisFin:
 	ret
 
+# ============================================================
+# SEGUNDA PARTE: validacion sintactica
+# Rutinas: mensajes, busqueda en la tabla y validacion
+# ============================================================
+
+_writeMsgValidacion:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_validacion, %rsi
+	movq	$lval, %rdx
+	syscall
+	ret
+
+_writeMsgValida:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_valida, %rsi
+	movq	$lvda, %rdx
+	syscall
+	ret
+
+_writeMsgOpcode:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_opcode, %rsi
+	movq	$lopc, %rdx
+	syscall
+	ret
+
+_writeErrorNoReconocida:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_no_reconocida, %rsi
+	movq	$lnre, %rdx
+	syscall
+	ret
+
+_writeErrorSinOperando:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_sin_operando, %rsi
+	movq	$lsop, %rdx
+	syscall
+	ret
+
+_writeErrorSinSegundo:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_sin_segundo, %rsi
+	movq	$lsse, %rdx
+	syscall
+	ret
+
+_writeErrorSobraOperando:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_sobra_operando, %rsi
+	movq	$lsob, %rdx
+	syscall
+	ret
+
+_writeErrorRegistro:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_registro_invalido, %rsi
+	movq	$lrin, %rdx
+	syscall
+	ret
+
+_writeErrorInmediato:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_inmediato_invalido, %rsi
+	movq	$liin, %rdx
+	syscall
+	ret
+
+_digitoHex:
+	cmpq	$BASE, %rax
+	jb	_digitoDecimal
+
+	addq	$'A'-BASE, %rax
+	ret
+
+_digitoDecimal:
+	addq	$'0', %rax
+	ret
+
+_writeHex:
+	movzbq	%al, %r15
+
+	movq	%r15, %rax
+	shrq	$4, %rax
+	call	_digitoHex
+	movb	%al, cadena(%rip)
+
+	movq	%r15, %rax
+	andq	$15, %rax
+	call	_digitoHex
+	movb	%al, cadena+1(%rip)
+
+	movb	$'\n', cadena+2(%rip)
+
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$cadena, %rsi
+	movq	$3, %rdx
+	syscall
+	ret
+
+_buscaMnemonico:
+	movq	$0, %r12
+
+_cicloMnemonico:
+	cmpq	$TOTAL_ENTRADAS, %r12
+	jae	_mnemonicoNoExiste
+
+	imulq	$TAM_ENTRADA, %r12, %r13
+	addq	$tabla, %r13
+
+	movq	$mnemonico, %rsi
+	movq	%r13, %rdi
+	movq	$TAM_MNEMONICO, %rcx
+	repe	cmpsb
+	je	_mnemonicoExiste
+
+	incq	%r12
+	jmp	_cicloMnemonico
+
+_mnemonicoExiste:
+	movq	%r12, %rax
+	ret
+
+_mnemonicoNoExiste:
+	movq	$-1, %rax
+	ret
+
+_buscaInstruccion:
+	movq	$0, %r12
+
+_cicloInstruccionTabla:
+	cmpq	$TOTAL_ENTRADAS, %r12
+	jae	_instruccionNoExiste
+
+	imulq	$TAM_ENTRADA, %r12, %r13
+	addq	$tabla, %r13
+
+	movq	$mnemonico, %rsi
+	movq	%r13, %rdi
+	movq	$TAM_MNEMONICO, %rcx
+	repe	cmpsb
+	jne	_siguienteEntrada
+
+	movq	$operando1, %rsi
+	movq	%r13, %rdi
+	addq	$ENT_REGISTRO, %rdi
+	movq	$TAM_REGISTRO, %rcx
+	repe	cmpsb
+	je	_instruccionExiste
+
+_siguienteEntrada:
+	incq	%r12
+	jmp	_cicloInstruccionTabla
+
+_instruccionExiste:
+	movq	%r12, %rax
+	ret
+
+_instruccionNoExiste:
+	movq	$-1, %rax
+	ret
+
+_validaInmediato:
+	movq	$operando2, %rsi
+	movq	$TAM_OPERANDO, %rcx
+	call	_longitud
+
+	movq	$0, %r15
+	movq	$0, %r12
+
+	cmpb	$'0', operando2(%rip)
+	jb	_inmediatoInvalido
+
+	cmpb	$'9', operando2(%rip)
+	ja	_inmediatoInvalido
+
+	cmpb	$'H', operando2-1(%rdx)
+	je	_inmediatoHex
+
+_cicloDecimal:
+	cmpq	%rdx, %r12
+	jae	_inmediatoFin
+
+	movzbq	operando2(%r12), %rax
+
+	cmpb	$'0', %al
+	jb	_inmediatoInvalido
+
+	cmpb	$'9', %al
+	ja	_inmediatoInvalido
+
+	subq	$'0', %rax
+	imulq	$BASE, %r15
+	addq	%rax, %r15
+
+	incq	%r12
+	jmp	_cicloDecimal
+
+_inmediatoHex:
+	decq	%rdx
+
+_cicloHex:
+	cmpq	%rdx, %r12
+	jae	_inmediatoFin
+
+	movzbq	operando2(%r12), %rax
+
+	cmpb	$'0', %al
+	jb	_inmediatoInvalido
+
+	cmpb	$'9', %al
+	jbe	_hexDigito
+
+	cmpb	$'A', %al
+	jb	_inmediatoInvalido
+
+	cmpb	$'F', %al
+	ja	_inmediatoInvalido
+
+	subq	$'A'-BASE, %rax
+	jmp	_hexAcumula
+
+_hexDigito:
+	subq	$'0', %rax
+
+_hexAcumula:
+	imulq	$BASE_HEX, %r15
+	addq	%rax, %r15
+
+	incq	%r12
+	jmp	_cicloHex
+
+_inmediatoFin:
+	cmpq	$MAX_INMEDIATO, %r15
+	ja	_inmediatoInvalido
+
+	movq	%r15, %rax
+	ret
+
+_inmediatoInvalido:
+	movq	$-1, %rax
+	ret
+
+_valida:
+	call	_writeMsgValidacion
+
+	call	_buscaMnemonico
+
+	cmpq	$-1, %rax
+	je	_validaNoReconocida
+
+	movzbq	ENT_TIPO(%r13), %r14
+
+	cmpb	$0, operando1(%rip)
+	je	_validaSinOperando
+
+	cmpq	$1, %r14
+	je	_validaDosOperandos
+
+	cmpb	$0, hayComa(%rip)
+	jne	_validaSobraOperando
+
+	jmp	_validaRegistro
+
+_validaDosOperandos:
+	cmpb	$0, hayComa(%rip)
+	je	_validaSinSegundo
+
+_validaRegistro:
+	call	_buscaInstruccion
+
+	cmpq	$-1, %rax
+	je	_validaRegistroInvalido
+
+	cmpq	$1, %r14
+	jne	_validaCorrecta
+
+	call	_validaInmediato
+
+	cmpq	$-1, %rax
+	je	_validaInmediatoInvalido
+
+_validaCorrecta:
+	call	_writeMsgValida
+	call	_writeMsgOpcode
+	movb	ENT_OPCODE(%r13), %al
+	call	_writeHex
+	ret
+
+_validaNoReconocida:
+	call	_writeErrorNoReconocida
+	ret
+
+_validaSinOperando:
+	call	_writeErrorSinOperando
+	ret
+
+_validaSinSegundo:
+	call	_writeErrorSinSegundo
+	ret
+
+_validaSobraOperando:
+	call	_writeErrorSobraOperando
+	ret
+
+_validaRegistroInvalido:
+	call	_writeErrorRegistro
+	ret
+
+_validaInmediatoInvalido:
+	call	_writeErrorInmediato
+	ret
+
 _exit:
 	movq	$EXIT, %rax
 	movq	$0, %rdi
@@ -574,6 +995,9 @@ _opcionAnalizar:
 	je	_errorSobrante
 
 	call	_imprimeAnalisis
+
+# ===== SEGUNDA PARTE: validacion sintactica =====
+	call	_valida
 	jmp	_menu
 
 _errorMnemonico:
