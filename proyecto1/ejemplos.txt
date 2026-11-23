@@ -1,0 +1,7 @@
+movb $5, %al
+movb $5, %cl
+movw $258, %ax
+pushw %bx
+popw %bx
+movb $300, %al
+pushw %al

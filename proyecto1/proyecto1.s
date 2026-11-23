@@ -11,7 +11,7 @@ menu:
 lm = . - menu
 
 msg_instruccion:
-	.ascii "Escribe la instruccion (ej. MOV AL, 05): "
+	.ascii "Escribe la instruccion (ej. movb $5, %al): "
 lins = . - msg_instruccion
 
 msg_capturada:
@@ -87,10 +87,6 @@ msg_valida:
 	.ascii "Instruccion valida\n"
 lvda = . - msg_valida
 
-msg_opcode:
-	.ascii "Codigo de operacion: "
-lopc = . - msg_opcode
-
 msg_no_reconocida:
 	.ascii "ERROR: instruccion no reconocida.\n"
 lnre = . - msg_no_reconocida
@@ -115,48 +111,124 @@ msg_inmediato_invalido:
 	.ascii "ERROR: valor inmediato no valido.\n"
 liin = . - msg_inmediato_invalido
 
-# Cada entrada: mnemonico (8), registro (4), tipo (1), codigo de operacion (1)
+# ============================================================
+# TERCERA PARTE: traduccion a codigo maquina
+# Mensajes, tabla de instrucciones y tabla de registros
+# ============================================================
+
+msg_codigo:
+	.ascii "Codigo maquina: "
+lcod = . - msg_codigo
+
+msg_error_punto:
+	.ascii "Error. "
+lerr = . - msg_error_punto
+
+msg_requiere16:
+	.ascii " requiere un registro de 16 bits.\n"
+lr16 = . - msg_requiere16
+
+msg_excede8:
+	.ascii "Error. El valor excede el rango de 8 bits.\n"
+lex8 = . - msg_excede8
+
+msg_excede16:
+	.ascii "Error. El valor excede el rango de 16 bits.\n"
+lex16 = . - msg_excede16
+
+msg_operando:
+	.ascii "Operando: "
+lope = . - msg_operando
+
+msg_sin_porcentaje:
+	.ascii "ERROR: el registro debe empezar con %.\n"
+lspo = . - msg_sin_porcentaje
+
+msg_sin_pesos:
+	.ascii "ERROR: el primer operando debe ser un valor inmediato con $.\n"
+lspe = . - msg_sin_pesos
+
+msg_sufijo:
+	.ascii "ERROR: el sufijo del mnemonico no corresponde al tamano del registro.\n"
+lsuf = . - msg_sufijo
+
+espacio:
+	.ascii " "
+lesp = . - espacio
+
+# Codificacion de x86-64, la misma que genera GAS
+# Cada entrada: mnemonico (8), tipo (1), base de 8 bits (1),
+# base de 16 bits (1), byte previo de 16 bits (1)
 # tipo 0 = un operando, tipo 1 = registro e inmediato
+# base 0 = la instruccion no admite registros de ese tamano
+# byte previo 0 = la instruccion no lleva byte antes de la base
+# El ultimo byte del codigo se calcula como base + identificador del registro
+# Con registros de 16 bits se antepone el prefijo 66
 tabla:
 	.ascii "MOV\0\0\0\0\0"
+	.byte 1, 0xB0, 0xB8, 0
+
+	.ascii "INC\0\0\0\0\0"
+	.byte 0, 0, 0xC0, 0xFF
+
+	.ascii "DEC\0\0\0\0\0"
+	.byte 0, 0, 0xC8, 0xFF
+
+	.ascii "PUSH\0\0\0\0"
+	.byte 0, 0, 0x50, 0
+
+	.ascii "POP\0\0\0\0\0"
+	.byte 0, 0, 0x58, 0
+
+# Cada entrada: registro (4), identificador (1), tamano en bits (1)
+registros:
 	.ascii "AL\0\0"
-	.byte 1, 0xB0
+	.byte 0, 8
 
-	.ascii "MOV\0\0\0\0\0"
+	.ascii "CL\0\0"
+	.byte 1, 8
+
+	.ascii "DL\0\0"
+	.byte 2, 8
+
 	.ascii "BL\0\0"
-	.byte 1, 0xB3
+	.byte 3, 8
 
-	.ascii "INC\0\0\0\0\0"
+	.ascii "AH\0\0"
+	.byte 4, 8
+
+	.ascii "CH\0\0"
+	.byte 5, 8
+
+	.ascii "DH\0\0"
+	.byte 6, 8
+
+	.ascii "BH\0\0"
+	.byte 7, 8
+
 	.ascii "AX\0\0"
-	.byte 0, 0x40
+	.byte 0, 16
 
-	.ascii "INC\0\0\0\0\0"
+	.ascii "CX\0\0"
+	.byte 1, 16
+
+	.ascii "DX\0\0"
+	.byte 2, 16
+
 	.ascii "BX\0\0"
-	.byte 0, 0x43
+	.byte 3, 16
 
-	.ascii "DEC\0\0\0\0\0"
-	.ascii "AX\0\0"
-	.byte 0, 0x48
+	.ascii "SP\0\0"
+	.byte 4, 16
 
-	.ascii "DEC\0\0\0\0\0"
-	.ascii "BX\0\0"
-	.byte 0, 0x4B
+	.ascii "BP\0\0"
+	.byte 5, 16
 
-	.ascii "PUSH\0\0\0\0"
-	.ascii "AX\0\0"
-	.byte 0, 0x50
+	.ascii "SI\0\0"
+	.byte 6, 16
 
-	.ascii "PUSH\0\0\0\0"
-	.ascii "BX\0\0"
-	.byte 0, 0x53
-
-	.ascii "POP\0\0\0\0\0"
-	.ascii "AX\0\0"
-	.byte 0, 0x58
-
-	.ascii "POP\0\0\0\0\0"
-	.ascii "BX\0\0"
-	.byte 0, 0x5B
+	.ascii "DI\0\0"
+	.byte 7, 16
 
 	.section .bss
 	.lcomm buffer, 64
@@ -168,6 +240,10 @@ tabla:
 
 # ===== SEGUNDA PARTE: variables =====
 	.lcomm cadena, 4
+
+# ===== TERCERA PARTE: variables =====
+	.lcomm codigo, 8
+	.lcomm sufijo, 1
 
 	.section .text
 	.globl	_start
@@ -186,14 +262,25 @@ tabla:
 
 # ===== SEGUNDA PARTE: constantes =====
 .equ TAM_REGISTRO,4
-.equ TAM_ENTRADA,14
-.equ TOTAL_ENTRADAS,10
-.equ ENT_REGISTRO,8
-.equ ENT_TIPO,12
-.equ ENT_OPCODE,13
+.equ TAM_ENTRADA,12
+.equ TOTAL_ENTRADAS,5
+.equ ENT_TIPO,8
 .equ BASE,10
 .equ BASE_HEX,16
 .equ MAX_INMEDIATO,255
+
+# ===== TERCERA PARTE: constantes =====
+.equ ENT_BASE8,9
+.equ ENT_BASE16,10
+.equ ENT_PREVIO16,11
+.equ PREFIJO_16,0x66
+.equ BASE_OCT,8
+.equ TAM_ENT_REGISTRO,6
+.equ TOTAL_REGISTROS,16
+.equ REG_ID,4
+.equ REG_TAM,5
+.equ TAM_16,16
+.equ MAX_INMEDIATO16,65535
 
 _writePrompt:
 	movq	$WRITE, %rax
@@ -591,32 +678,34 @@ _imprimeAnalisis:
 	cmpb	$0, operando1(%rip)
 	je	_imprimeAnalisisFin
 
-	call	_writeMsgDestino
-	movq	$operando1, %rsi
-	movq	$TAM_OPERANDO, %rcx
-	call	_writeToken
-
 	cmpb	$0, hayComa(%rip)
-	je	_imprimeAnalisisFin
+	je	_imprimeUnOperando
 
-	call	_writeMsgComa
-
-	movb	operando2(%rip), %al
-
-	cmpb	$'0', %al
-	jb	_imprimeFuente
-
-	cmpb	$'9', %al
-	ja	_imprimeFuente
+	cmpb	$'$', operando1(%rip)
+	jne	_imprimeFuente
 
 	call	_writeMsgInmediato
-	jmp	_imprimeOperando2
+	jmp	_imprimeOperando1
 
 _imprimeFuente:
 	call	_writeMsgFuente
 
-_imprimeOperando2:
+_imprimeOperando1:
+	movq	$operando1, %rsi
+	movq	$TAM_OPERANDO, %rcx
+	call	_writeToken
+
+	call	_writeMsgComa
+
+	call	_writeMsgDestino
 	movq	$operando2, %rsi
+	movq	$TAM_OPERANDO, %rcx
+	call	_writeToken
+	ret
+
+_imprimeUnOperando:
+	call	_writeMsgOperando
+	movq	$operando1, %rsi
 	movq	$TAM_OPERANDO, %rcx
 	call	_writeToken
 
@@ -641,14 +730,6 @@ _writeMsgValida:
 	movq	$STDOUT, %rdi
 	movq	$msg_valida, %rsi
 	movq	$lvda, %rdx
-	syscall
-	ret
-
-_writeMsgOpcode:
-	movq	$WRITE, %rax
-	movq	$STDOUT, %rdi
-	movq	$msg_opcode, %rsi
-	movq	$lopc, %rdx
 	syscall
 	ret
 
@@ -724,21 +805,24 @@ _writeHex:
 	call	_digitoHex
 	movb	%al, cadena+1(%rip)
 
-	movb	$'\n', cadena+2(%rip)
-
 	movq	$WRITE, %rax
 	movq	$STDOUT, %rdi
 	movq	$cadena, %rsi
-	movq	$3, %rdx
+	movq	$2, %rdx
 	syscall
 	ret
 
+# Si el mnemonico no esta en la tabla y termina en B o W, guarda esa
+# letra en sufijo, la quita y vuelve a buscar (MOVB -> MOV, PUSHW -> PUSH)
 _buscaMnemonico:
+	movb	$0, sufijo(%rip)
+
+_buscaMnemonicoTabla:
 	movq	$0, %r12
 
 _cicloMnemonico:
 	cmpq	$TOTAL_ENTRADAS, %r12
-	jae	_mnemonicoNoExiste
+	jae	_mnemonicoSufijo
 
 	imulq	$TAM_ENTRADA, %r12, %r13
 	addq	$tabla, %r13
@@ -756,95 +840,263 @@ _mnemonicoExiste:
 	movq	%r12, %rax
 	ret
 
+_mnemonicoSufijo:
+	cmpb	$0, sufijo(%rip)
+	jne	_mnemonicoNoExiste
+
+	movq	$mnemonico, %rsi
+	movq	$TAM_MNEMONICO, %rcx
+	call	_longitud
+
+	movb	mnemonico-1(%rdx), %al
+
+	cmpb	$'B', %al
+	je	_quitaSufijo
+
+	cmpb	$'W', %al
+	jne	_mnemonicoNoExiste
+
+_quitaSufijo:
+	movb	%al, sufijo(%rip)
+	movb	$0, mnemonico-1(%rdx)
+	jmp	_buscaMnemonicoTabla
+
 _mnemonicoNoExiste:
 	movq	$-1, %rax
 	ret
 
-_buscaInstruccion:
-	movq	$0, %r12
+# ============================================================
+# TERCERA PARTE: traduccion a codigo maquina
+# Rutinas: mensajes, busqueda del registro y generacion de bytes
+# ============================================================
 
-_cicloInstruccionTabla:
-	cmpq	$TOTAL_ENTRADAS, %r12
-	jae	_instruccionNoExiste
+_writeMsgCodigo:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_codigo, %rsi
+	movq	$lcod, %rdx
+	syscall
+	ret
 
-	imulq	$TAM_ENTRADA, %r12, %r13
-	addq	$tabla, %r13
+_writeEspacio:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$espacio, %rsi
+	movq	$lesp, %rdx
+	syscall
+	ret
+
+_writeErrorExcede8:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_excede8, %rsi
+	movq	$lex8, %rdx
+	syscall
+	ret
+
+_writeErrorExcede16:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_excede16, %rsi
+	movq	$lex16, %rdx
+	syscall
+	ret
+
+_writeErrorRequiere16:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_error_punto, %rsi
+	movq	$lerr, %rdx
+	syscall
 
 	movq	$mnemonico, %rsi
-	movq	%r13, %rdi
 	movq	$TAM_MNEMONICO, %rcx
-	repe	cmpsb
-	jne	_siguienteEntrada
+	call	_longitud
 
-	movq	$operando1, %rsi
-	movq	%r13, %rdi
-	addq	$ENT_REGISTRO, %rdi
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	syscall
+
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_requiere16, %rsi
+	movq	$lr16, %rdx
+	syscall
+	ret
+
+_writeMsgOperando:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_operando, %rsi
+	movq	$lope, %rdx
+	syscall
+	ret
+
+_writeErrorSinPorcentaje:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_sin_porcentaje, %rsi
+	movq	$lspo, %rdx
+	syscall
+	ret
+
+_writeErrorSinPesos:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_sin_pesos, %rsi
+	movq	$lspe, %rdx
+	syscall
+	ret
+
+_writeErrorSufijo:
+	movq	$WRITE, %rax
+	movq	$STDOUT, %rdi
+	movq	$msg_sufijo, %rsi
+	movq	$lsuf, %rdx
+	syscall
+	ret
+
+# Entrada: rsi = operando que empieza con %
+# Deja en r14 la entrada del registro escrito despues del %
+_buscaRegistro:
+	movq	%rsi, %r15
+	incq	%r15
+	movq	$0, %r12
+
+_cicloRegistro:
+	cmpq	$TOTAL_REGISTROS, %r12
+	jae	_registroNoExiste
+
+	imulq	$TAM_ENT_REGISTRO, %r12, %r14
+	addq	$registros, %r14
+
+	movq	%r15, %rsi
+	movq	%r14, %rdi
 	movq	$TAM_REGISTRO, %rcx
 	repe	cmpsb
-	je	_instruccionExiste
+	je	_registroExiste
 
-_siguienteEntrada:
 	incq	%r12
-	jmp	_cicloInstruccionTabla
+	jmp	_cicloRegistro
 
-_instruccionExiste:
+_registroExiste:
 	movq	%r12, %rax
 	ret
 
-_instruccionNoExiste:
+_registroNoExiste:
 	movq	$-1, %rax
 	ret
 
+# Entrada: r13 = entrada de la instruccion, r14 = entrada del registro,
+# r15 = valor inmediato. Salida: bytes en codigo y su cantidad en rax
+_genera:
+	movq	$0, %r12
+
+	cmpb	$TAM_16, REG_TAM(%r14)
+	jne	_generaBase8
+
+	movb	$PREFIJO_16, codigo(%r12)
+	incq	%r12
+
+	movb	ENT_PREVIO16(%r13), %al
+
+	cmpb	$0, %al
+	je	_generaBase16
+
+	movb	%al, codigo(%r12)
+	incq	%r12
+
+_generaBase16:
+	movb	ENT_BASE16(%r13), %al
+	jmp	_generaOpcode
+
+_generaBase8:
+	movb	ENT_BASE8(%r13), %al
+
+_generaOpcode:
+	addb	REG_ID(%r14), %al
+	movb	%al, codigo(%r12)
+	incq	%r12
+
+	cmpb	$1, ENT_TIPO(%r13)
+	jne	_generaFin
+
+	movb	%r15b, codigo(%r12)
+	incq	%r12
+
+	cmpb	$TAM_16, REG_TAM(%r14)
+	jne	_generaFin
+
+	movq	%r15, %rax
+	shrq	$8, %rax
+	movb	%al, codigo(%r12)
+	incq	%r12
+
+_generaFin:
+	movq	%r12, %rax
+	ret
+
+_writeCodigo:
+	movq	%rax, %r14
+
+	call	_writeMsgCodigo
+	movq	$0, %r12
+
+_cicloCodigo:
+	movb	codigo(%r12), %al
+	call	_writeHex
+
+	incq	%r12
+	cmpq	%r14, %r12
+	jae	_codigoFin
+
+	call	_writeEspacio
+	jmp	_cicloCodigo
+
+_codigoFin:
+	call	_writeSalto
+	ret
+
+# Convierte el inmediato escrito despues del $ en operando1
+# Como en GAS: 0x indica hexadecimal, un 0 inicial indica octal
+# y cualquier otro caso es decimal. La base queda en rbx
 _validaInmediato:
-	movq	$operando2, %rsi
-	movq	$TAM_OPERANDO, %rcx
+	movq	$operando1+1, %rsi
+	movq	$TAM_OPERANDO-1, %rcx
 	call	_longitud
 
 	movq	$0, %r15
 	movq	$0, %r12
+	movq	$BASE, %rbx
 
-	cmpb	$'0', operando2(%rip)
-	jb	_inmediatoInvalido
+	cmpq	$0, %rdx
+	je	_inmediatoInvalido
 
-	cmpb	$'9', operando2(%rip)
-	ja	_inmediatoInvalido
+	cmpb	$'0', operando1+1(%rip)
+	jne	_cicloInmediato
 
-	cmpb	$'H', operando2-1(%rdx)
-	je	_inmediatoHex
+	movq	$BASE_OCT, %rbx
 
-_cicloDecimal:
+	cmpb	$'X', operando1+2(%rip)
+	jne	_cicloInmediato
+
+	movq	$BASE_HEX, %rbx
+	movq	$2, %r12
+
+	cmpq	%rdx, %r12
+	jae	_inmediatoInvalido
+
+_cicloInmediato:
 	cmpq	%rdx, %r12
 	jae	_inmediatoFin
 
-	movzbq	operando2(%r12), %rax
+	movzbq	operando1+1(%r12), %rax
 
 	cmpb	$'0', %al
 	jb	_inmediatoInvalido
 
 	cmpb	$'9', %al
-	ja	_inmediatoInvalido
-
-	subq	$'0', %rax
-	imulq	$BASE, %r15
-	addq	%rax, %r15
-
-	incq	%r12
-	jmp	_cicloDecimal
-
-_inmediatoHex:
-	decq	%rdx
-
-_cicloHex:
-	cmpq	%rdx, %r12
-	jae	_inmediatoFin
-
-	movzbq	operando2(%r12), %rax
-
-	cmpb	$'0', %al
-	jb	_inmediatoInvalido
-
-	cmpb	$'9', %al
-	jbe	_hexDigito
+	jbe	_digitoNumero
 
 	cmpb	$'A', %al
 	jb	_inmediatoInvalido
@@ -853,22 +1105,22 @@ _cicloHex:
 	ja	_inmediatoInvalido
 
 	subq	$'A'-BASE, %rax
-	jmp	_hexAcumula
+	jmp	_digitoAcumula
 
-_hexDigito:
+_digitoNumero:
 	subq	$'0', %rax
 
-_hexAcumula:
-	imulq	$BASE_HEX, %r15
+_digitoAcumula:
+	cmpq	%rbx, %rax
+	jae	_inmediatoInvalido
+
+	imulq	%rbx, %r15
 	addq	%rax, %r15
 
 	incq	%r12
-	jmp	_cicloHex
+	jmp	_cicloInmediato
 
 _inmediatoFin:
-	cmpq	$MAX_INMEDIATO, %r15
-	ja	_inmediatoInvalido
-
 	movq	%r15, %rax
 	ret
 
@@ -884,42 +1136,101 @@ _valida:
 	cmpq	$-1, %rax
 	je	_validaNoReconocida
 
-	movzbq	ENT_TIPO(%r13), %r14
-
 	cmpb	$0, operando1(%rip)
 	je	_validaSinOperando
 
-	cmpq	$1, %r14
+	cmpb	$1, ENT_TIPO(%r13)
 	je	_validaDosOperandos
 
 	cmpb	$0, hayComa(%rip)
 	jne	_validaSobraOperando
 
+	movq	$operando1, %rsi
 	jmp	_validaRegistro
 
 _validaDosOperandos:
 	cmpb	$0, hayComa(%rip)
 	je	_validaSinSegundo
 
+	movq	$operando2, %rsi
+
 _validaRegistro:
-	call	_buscaInstruccion
+	cmpb	$'%', (%rsi)
+	jne	_validaSinPorcentaje
+
+	call	_buscaRegistro
 
 	cmpq	$-1, %rax
 	je	_validaRegistroInvalido
 
-	cmpq	$1, %r14
+	cmpb	$TAM_16, REG_TAM(%r14)
+	je	_validaSufijo16
+
+	cmpb	$0, ENT_BASE8(%r13)
+	je	_validaRequiere16
+
+	cmpb	$'W', sufijo(%rip)
+	je	_validaSufijoIncorrecto
+
+	jmp	_validaTipo
+
+_validaSufijo16:
+	cmpb	$'B', sufijo(%rip)
+	je	_validaSufijoIncorrecto
+
+_validaTipo:
+	cmpb	$1, ENT_TIPO(%r13)
 	jne	_validaCorrecta
+
+	cmpb	$'$', operando1(%rip)
+	jne	_validaSinPesos
 
 	call	_validaInmediato
 
 	cmpq	$-1, %rax
 	je	_validaInmediatoInvalido
 
+	cmpb	$TAM_16, REG_TAM(%r14)
+	je	_validaRango16
+
+	cmpq	$MAX_INMEDIATO, %rax
+	ja	_validaExcede8
+
+	jmp	_validaCorrecta
+
+_validaRango16:
+	cmpq	$MAX_INMEDIATO16, %rax
+	ja	_validaExcede16
+
+# ===== TERCERA PARTE: traduccion a codigo maquina =====
 _validaCorrecta:
 	call	_writeMsgValida
-	call	_writeMsgOpcode
-	movb	ENT_OPCODE(%r13), %al
-	call	_writeHex
+	call	_genera
+	call	_writeCodigo
+	ret
+
+_validaRequiere16:
+	call	_writeErrorRequiere16
+	ret
+
+_validaExcede8:
+	call	_writeErrorExcede8
+	ret
+
+_validaExcede16:
+	call	_writeErrorExcede16
+	ret
+
+_validaSinPorcentaje:
+	call	_writeErrorSinPorcentaje
+	ret
+
+_validaSinPesos:
+	call	_writeErrorSinPesos
+	ret
+
+_validaSufijoIncorrecto:
+	call	_writeErrorSufijo
 	ret
 
 _validaNoReconocida:
